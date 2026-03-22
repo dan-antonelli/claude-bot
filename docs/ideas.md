@@ -36,3 +36,33 @@ All state (active project, session ID) is currently held in memory and lost on r
 - **SQLite** is the natural fit — zero infrastructure, file-based, already available in Python's stdlib.
 - Store: active project per chat, session IDs, command history, audit log of prompts sent.
 - Enables features like session restore after crash, per-user project assignments, and usage analytics.
+
+---
+
+## Loading indicator while Claude is thinking
+
+There is currently no feedback between sending a prompt and receiving the first tool-use notification — the chat just goes silent. This can feel broken on longer tasks.
+
+- Use Telegram's `sendChatAction` with `typing` on a repeating interval while Claude is running.
+- Cancel the action as soon as the first tool notification (or final response) is sent.
+- Keeps the UX responsive without any changes to the Claude invocation logic.
+
+---
+
+## Command aliases
+
+Frequently used project switches or prompt prefixes require retyping every time. A lightweight alias system would reduce friction:
+
+- Define aliases in a new `aliases.json` (or a section of `projects.json`) — e.g. `"narrat": "/use narrat"` or `"standup": "summarise what changed today across all projects"`.
+- Trigger with a `/alias <name>` command or a configurable prefix character.
+- Aliases that expand to full prompts get forwarded to Claude; aliases that expand to bot commands are handled locally.
+
+---
+
+## Deploy on a remote server
+
+Running the bot on a local machine means it goes offline whenever the machine sleeps or loses connectivity. A persistent remote host eliminates that:
+
+- **VPS / cloud VM**: smallest tier on Hetzner, DigitalOcean, or Fly.io is enough. Run the bot in a tmux session or as a systemd service so it survives reboots.
+- **Authentication**: the remote machine needs `claude` installed and authenticated — document the one-time setup steps (copy `.env`, run `claude login`).
+- **Project directories**: projects live on the remote machine; either mirror them via git or work directly on the server. Ties in with the Docker idea for easier provisioning.
