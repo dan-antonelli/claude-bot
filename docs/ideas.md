@@ -59,6 +59,17 @@ Frequently used project switches or prompt prefixes require retyping every time.
 
 ---
 
+## Send screenshots to Claude
+
+Claude is multimodal but the bot currently only handles text. Supporting image input would open up a useful class of prompts:
+
+- Accept photos sent directly in the Telegram chat and pass them to Claude alongside the text prompt.
+- Useful for sharing UI screenshots, error dialogs, diagrams, or handwritten notes for Claude to reason about.
+- Telegram delivers photos as file IDs; download via `getFile`, encode as base64, and include in the `claude -p` invocation using the `--image` flag (or API equivalent).
+- Could also support documents (PDF, PNG attachments) with the same pipeline.
+
+---
+
 ## Deploy on a remote server
 
 Running the bot on a local machine means it goes offline whenever the machine sleeps or loses connectivity. A persistent remote host eliminates that:
