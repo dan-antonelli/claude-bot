@@ -77,3 +77,15 @@ Running the bot on a local machine means it goes offline whenever the machine sl
 - **VPS / cloud VM**: smallest tier on Hetzner, DigitalOcean, or Fly.io is enough. Run the bot in a tmux session or as a systemd service so it survives reboots.
 - **Authentication**: the remote machine needs `claude` installed and authenticated — document the one-time setup steps (copy `.env`, run `claude login`).
 - **Project directories**: projects live on the remote machine; either mirror them via git or work directly on the server. Ties in with the Docker idea for easier provisioning.
+
+---
+
+## Multi-machine control from one Telegram chat
+
+Telegram's polling model is exclusive — only one instance can hold a bot token at a time, so running the same bot on two machines causes split, unpredictable routing. The cleanest solution is a single bot that routes to named machines:
+
+- Each machine runs its own `bot.py` but subscribes to a **shared message broker** (Redis pub/sub or a lightweight MQTT broker) instead of polling Telegram directly.
+- A thin **router process** (deployable on any always-on host) holds the single Telegram token, receives all messages, and fans them out to the broker.
+- Messages are addressed with a machine prefix — e.g. `/on laptop narrat: fix the bug` or `/on server deploy`. Each machine instance picks up only messages addressed to it and replies back through the broker to Telegram.
+- The router tags all responses with the originating machine name so it's always clear which machine replied.
+- Pairs naturally with the remote server and Docker ideas — the router is the only component that needs a public host; machine instances connect outbound and need no open ports.
