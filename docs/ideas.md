@@ -89,3 +89,14 @@ Telegram's polling model is exclusive — only one instance can hold a bot token
 - Messages are addressed with a machine prefix — e.g. `/on laptop narrat: fix the bug` or `/on server deploy`. Each machine instance picks up only messages addressed to it and replies back through the broker to Telegram.
 - The router tags all responses with the originating machine name so it's always clear which machine replied.
 - Pairs naturally with the remote server and Docker ideas — the router is the only component that needs a public host; machine instances connect outbound and need no open ports.
+
+---
+
+## Improved message headers
+
+The current header is just the project name (e.g. `▶ narrat`). It could carry more context without becoming noisy:
+
+- **Machine name**: prepend the hostname (`socket.gethostname()`) so replies are always traceable — e.g. `▶ laptop / narrat`. Critical when running on multiple machines.
+- **Timestamp**: include the time the response was sent, useful for async workflows where you check Telegram later.
+- **Richer format**: a single compact header line like `▶ laptop · narrat · 14:32` covers machine, project, and time without extra messages.
+- The header format could be configurable via `.env` (e.g. `SHOW_HOSTNAME=true`) so single-machine setups stay minimal.
