@@ -16,13 +16,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 BOT_TOKEN    = os.environ["TELEGRAM_BOT_TOKEN"]
 CHAT_ID      = int(os.environ["TELEGRAM_CHAT_ID"])
 PIPE_PATH    = Path(os.environ.get("WATCHDOG_PIPE", "/tmp/claude-bot.fifo"))
 BOT_SESSION  = "claude-bot"
-START_SCRIPT = Path(__file__).parent / "start-bot.sh"
+START_SCRIPT = Path(__file__).parent.parent / "start-bot.sh"
 
 log = logging.getLogger(__name__)
 

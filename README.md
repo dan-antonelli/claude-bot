@@ -115,8 +115,8 @@ The watchdog is a separate process that runs independently of the bot. It monito
 ### Starting the watchdog
 
 ```bash
-chmod +x start-watchdog.sh
-./start-watchdog.sh
+chmod +x watchdog/start.sh
+./watchdog/start.sh
 ```
 
 Runs in its own tmux session (`claude-watchdog`), independent of `claude-bot`.

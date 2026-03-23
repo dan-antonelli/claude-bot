@@ -100,9 +100,9 @@ You (Telegram) ──► Claude Code (in project dir)
 | Component | File | tmux session | Role |
 |---|---|---|---|
 | Bot | `bot.py` | `claude-bot` | Handles Telegram messages, invokes Claude |
-| Watchdog | `watchdog.py` | `claude-watchdog` | Lifecycle control, crash recovery |
+| Watchdog | `watchdog/watchdog.py` | `claude-watchdog` | Lifecycle control, crash recovery |
 | Launcher (bot) | `start-bot.sh` | — | Starts bot in tmux |
-| Launcher (watchdog) | `start-watchdog.sh` | — | Starts watchdog in tmux |
+| Launcher (watchdog) | `watchdog/start.sh` | — | Starts watchdog in tmux |
 | Config | `projects.json` | — | Project name → directory mapping |
 | Secrets | `.env` | — | Bot token, chat ID, binary path, pipe path |
 

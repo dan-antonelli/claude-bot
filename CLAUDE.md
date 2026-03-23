@@ -40,18 +40,18 @@ pip3 install python-telegram-bot python-dotenv pytest pytest-asyncio
 
 ## Watchdog
 
-A separate `watchdog.py` runs in its own tmux session (`claude-watchdog`), independent of the bot. It monitors the bot and accepts lifecycle commands via a named pipe.
+Lives in `watchdog/` — its own self-contained program. Runs in a separate tmux session (`claude-watchdog`), independent of the bot. Monitors the bot and accepts lifecycle commands via a named pipe.
 
 **Start it:**
 ```bash
-./start-watchdog.sh
+./watchdog/start.sh
 ```
 
 **Trigger a restart from within Claude Code (e.g. after deploying changes):**
 ```bash
 echo restart > /tmp/claude-bot.fifo
 ```
-The watchdog will send "🔄 Restarting bot..." to Telegram, kill the `claude-bot` session, relaunch it via `start-bot.sh`, then send "✅ Bot restarted." — all without killing itself.
+The watchdog sends "🔄 Restarting bot..." to Telegram, kills the `claude-bot` session, relaunches via `start-bot.sh`, then sends "✅ Bot restarted." — all without killing itself.
 
 **Other commands:**
 ```bash
