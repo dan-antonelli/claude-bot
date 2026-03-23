@@ -27,6 +27,7 @@ START_SCRIPT = Path(__file__).parent.parent / "start-bot.sh"
 log = logging.getLogger(__name__)
 
 _intentionally_stopped = False  # guard against health-check auto-restart during manual stop
+_update_offset = 0              # Telegram getUpdates offset; tracks next unseen update
 
 
 # ── Core helpers ──────────────────────────────────────────────────────────────
@@ -41,6 +42,26 @@ def send_telegram(text: str) -> None:
             pass
     except Exception:
         pass
+
+
+def get_updates() -> list:
+    """Fetch pending Telegram updates, advancing _update_offset. Returns list of updates."""
+    global _update_offset
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates?offset={_update_offset}&timeout=0"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            data = json.loads(resp.read())
+        updates = data.get("result", [])
+        if updates:
+            _update_offset = updates[-1]["update_id"] + 1
+        return updates
+    except Exception:
+        return []
+
+
+def drain_updates() -> None:
+    """Consume all pending updates without replying (call when bot stops to skip old messages)."""
+    get_updates()
 
 
 def bot_is_running() -> bool:
@@ -89,6 +110,7 @@ def handle_stop() -> None:
         return
     _intentionally_stopped = True
     kill_bot()
+    drain_updates()  # skip messages that arrived while bot was running
     send_telegram("🛑 Bot stopped.")
 
 
@@ -163,6 +185,12 @@ def run_loop() -> None:
                     log.warning("Bot not running — auto-restarting")
                     send_telegram("⚠️ Bot crashed — restarted.")
                     start_bot()
+                # Reply to incoming messages when bot is intentionally stopped
+                elif _intentionally_stopped:
+                    for update in get_updates():
+                        msg = update.get("message") or update.get("edited_message")
+                        if msg and msg.get("chat", {}).get("id") == CHAT_ID:
+                            send_telegram("🛑 Bot stopped.")
     finally:
         os.close(fd)
 
