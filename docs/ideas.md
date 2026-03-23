@@ -173,3 +173,16 @@ Some configuration (aliases, project list, tool permissions) currently requires 
   - Same pattern for projects: `/project add <name> <path>`, `/project remove <name>`
 - **Fallback**: JSON files (`aliases.json`, `projects.json`) remain as the seed/default config on first run; the database is populated from them and takes over from there.
 - **Hot path**: on each incoming message, the bot checks the alias table first — if the message matches a defined alias, it expands it before forwarding to Claude. No bot restart, no file editing, no SSH.
+
+---
+
+## 17. Model instance management from Telegram
+
+The bot currently has no visibility into what Claude processes are actually running on the machine. A `/instances` command would expose that and allow full lifecycle control from Telegram:
+
+- **List**: `/instances` shows all running `claude` processes — project name, session ID, how long they've been running, and current status (thinking, waiting, idle).
+- **Kill**: `/kill <project>` terminates a stuck or unwanted Claude process for a given project and clears its session.
+- **Restart**: `/restart <project>` kills the current process and starts a fresh Claude session in that project's directory.
+- **Start**: `/start <project>` launches a new Claude session for a project that has none active, without sending a prompt — useful for warming up a session before you're ready to use it.
+- Implementation: track subprocess handles in the existing `sessions` dict (or a parallel `processes` dict), and expose the lifecycle commands as Telegram bot handlers. `/kill` sends `SIGTERM`; `/restart` does kill + start in sequence.
+- Pairs naturally with the watchdog idea (idea 14) — together they give full remote control over both the bot process itself and the Claude subprocesses it manages.
