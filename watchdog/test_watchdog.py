@@ -253,3 +253,27 @@ class TestProcessIteration:
         mock_s.assert_not_called()
         mock_st.assert_not_called()
         mock_ss.assert_not_called()
+
+
+# ── TestRunLoopStartup ────────────────────────────────────────────────────────
+
+class TestRunLoopStartup:
+    def test_sends_startup_notification(self):
+        """run_loop() should send a Telegram message when it starts."""
+        calls = []
+
+        def fake_select(rlist, wlist, xlist, timeout):
+            raise KeyboardInterrupt  # break the loop immediately
+
+        with patch.object(watchdog, "ensure_pipe"), \
+             patch.object(watchdog, "send_telegram", side_effect=lambda t: calls.append(t)), \
+             patch("os.open", return_value=3), \
+             patch("os.close"), \
+             patch("select.select", side_effect=fake_select):
+            try:
+                watchdog.run_loop()
+            except KeyboardInterrupt:
+                pass
+
+        assert any("👀" in c or "started" in c.lower() for c in calls), \
+            f"Expected startup message in send_telegram calls, got: {calls}"

@@ -141,6 +141,7 @@ def run_loop() -> None:
     global _intentionally_stopped
     ensure_pipe()
     log.info("Watchdog started. Listening on %s", PIPE_PATH)
+    send_telegram("👀 Watchdog started.")
 
     fd = os.open(str(PIPE_PATH), os.O_RDONLY | os.O_NONBLOCK)
     try:

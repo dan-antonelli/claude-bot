@@ -61,3 +61,5 @@ echo status > /tmp/claude-bot.fifo
 ```
 
 **Config:** `WATCHDOG_PIPE` in `.env` overrides the default pipe path (`/tmp/claude-bot.fifo`).
+
+**For production** (survives reboots): `./watchdog/install-launchd.sh` — installs as a launchd service that macOS keeps alive permanently. The watchdog sends "👀 Watchdog started." on each restart.

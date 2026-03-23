@@ -140,6 +140,23 @@ The watchdog sends a Telegram message for each action (e.g. "🔄 Restarting bot
 
 If the bot dies unexpectedly while the watchdog is running, the watchdog automatically restarts it and sends "⚠️ Bot crashed — restarted." to Telegram.
 
+### Production: keep the watchdog alive with launchd (macOS)
+
+Running the watchdog in tmux works for development, but tmux sessions don't survive reboots. For production, install it as a launchd service so macOS keeps it alive permanently:
+
+```bash
+chmod +x watchdog/install-launchd.sh
+./watchdog/install-launchd.sh
+```
+
+This stops the tmux session (if running), generates a plist at `~/Library/LaunchAgents/com.claude-bot.watchdog.plist`, and loads it. launchd will restart the watchdog on crash and on every login. The watchdog sends "👀 Watchdog started." to Telegram on each restart.
+
+Uninstall:
+```bash
+launchctl unload ~/Library/LaunchAgents/com.claude-bot.watchdog.plist
+rm ~/Library/LaunchAgents/com.claude-bot.watchdog.plist
+```
+
 ### Config
 
 Override the pipe path in `.env`:

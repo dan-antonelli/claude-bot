@@ -673,6 +673,29 @@ class TestHandleMessage:
         assert "boom" in error_msgs[0]
 
 
+# ── on_shutdown ───────────────────────────────────────────────────────────────
+
+class TestOnShutdown:
+    async def test_sends_shutdown_message_to_chat(self):
+        mock_app = MagicMock()
+        mock_app.bot.send_message = AsyncMock()
+
+        await bot.on_shutdown(mock_app)
+
+        mock_app.bot.send_message.assert_awaited_once()
+        kwargs = mock_app.bot.send_message.call_args.kwargs
+        assert kwargs["chat_id"] == bot.CHAT_ID
+
+    async def test_shutdown_message_indicates_stopped(self):
+        mock_app = MagicMock()
+        mock_app.bot.send_message = AsyncMock()
+
+        await bot.on_shutdown(mock_app)
+
+        kwargs = mock_app.bot.send_message.call_args.kwargs
+        assert "🔴" in kwargs["text"] or "stopped" in kwargs["text"].lower()
+
+
 # ── on_startup ────────────────────────────────────────────────────────────────
 
 class TestOnStartup:

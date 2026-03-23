@@ -249,6 +249,13 @@ async def on_startup(app) -> None:
         text=f"👋 Bot started. Active project: {active_project}",
     )
 
+
+async def on_shutdown(app) -> None:
+    await app.bot.send_message(
+        chat_id=CHAT_ID,
+        text="🔴 Bot stopped.",
+    )
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -256,6 +263,7 @@ def main() -> None:
         Application.builder()
         .token(BOT_TOKEN)
         .post_init(on_startup)
+        .post_shutdown(on_shutdown)
         .build()
     )
 
