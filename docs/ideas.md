@@ -1,6 +1,6 @@
 # Ideas & Future Improvements
 
-## Zero-downtime deployments
+## 1. Zero-downtime deployments
 
 Currently, updating the bot requires stopping it, applying changes, and restarting — which drops any in-flight Telegram sessions. Two approaches worth exploring:
 
@@ -9,7 +9,7 @@ Currently, updating the bot requires stopping it, applying changes, and restarti
 
 ---
 
-## Better README — Telegram setup section
+## 2. Better README — Telegram setup section
 
 The current Telegram setup section could be clearer. Ideas:
 
@@ -19,7 +19,7 @@ The current Telegram setup section could be clearer. Ideas:
 
 ---
 
-## Multi-factor authentication
+## 3. Multi-factor authentication
 
 The bot currently gates access on a single `TELEGRAM_CHAT_ID`. This is reasonable for personal use but could be hardened:
 
@@ -29,7 +29,7 @@ The bot currently gates access on a single `TELEGRAM_CHAT_ID`. This is reasonabl
 
 ---
 
-## Persistent storage / database
+## 4. Persistent storage / database
 
 All state (active project, session ID) is currently held in memory and lost on restart. A lightweight database layer would make the bot more robust:
 
@@ -39,7 +39,7 @@ All state (active project, session ID) is currently held in memory and lost on r
 
 ---
 
-## Loading indicator while Claude is thinking
+## 5. Loading indicator while Claude is thinking
 
 There is currently no feedback between sending a prompt and receiving the first tool-use notification — the chat just goes silent. This can feel broken on longer tasks.
 
@@ -49,7 +49,7 @@ There is currently no feedback between sending a prompt and receiving the first 
 
 ---
 
-## Command aliases
+## 6. Command aliases
 
 Frequently used project switches or prompt prefixes require retyping every time. A lightweight alias system would reduce friction:
 
@@ -59,7 +59,7 @@ Frequently used project switches or prompt prefixes require retyping every time.
 
 ---
 
-## Send screenshots to Claude
+## 7. Send screenshots to Claude
 
 Claude is multimodal but the bot currently only handles text. Supporting image input would open up a useful class of prompts:
 
@@ -70,7 +70,7 @@ Claude is multimodal but the bot currently only handles text. Supporting image i
 
 ---
 
-## Deploy on a remote server
+## 8. Deploy on a remote server
 
 Running the bot on a local machine means it goes offline whenever the machine sleeps or loses connectivity. A persistent remote host eliminates that:
 
@@ -80,7 +80,7 @@ Running the bot on a local machine means it goes offline whenever the machine sl
 
 ---
 
-## Multi-machine control from one Telegram chat
+## 9. Multi-machine control from one Telegram chat
 
 Telegram's polling model is exclusive — only one instance can hold a bot token at a time, so running the same bot on two machines causes split, unpredictable routing. The cleanest solution is a single bot that routes to named machines:
 
@@ -92,7 +92,7 @@ Telegram's polling model is exclusive — only one instance can hold a bot token
 
 ---
 
-## Improved message headers
+## 10. Improved message headers
 
 The current header is just the project name (e.g. `▶ narrat`). It could carry more context without becoming noisy:
 
@@ -103,7 +103,7 @@ The current header is just the project name (e.g. `▶ narrat`). It could carry 
 
 ---
 
-## Integrations — Narrat and NovelCrafter
+## 11. Integrations — Narrat and NovelCrafter
 
 The bot currently treats all projects as generic code directories. Writing-focused tools deserve first-class support:
 
@@ -113,7 +113,7 @@ The bot currently treats all projects as generic code directories. Writing-focus
 
 ---
 
-## General task automation via Telegram
+## 12. General task automation via Telegram
 
 Beyond Claude Code, the bot's architecture (Telegram → subprocess → response) generalises to any shell-based task:
 
@@ -124,7 +124,7 @@ Beyond Claude Code, the bot's architecture (Telegram → subprocess → response
 
 ---
 
-## Switchable AI backend
+## 13. Switchable AI backend
 
 The bot is hardcoded to invoke `claude`. Making the backend configurable would allow switching to other CLI-based AI tools without rewriting the bot:
 
@@ -135,7 +135,7 @@ The bot is hardcoded to invoke `claude`. Making the backend configurable would a
 
 ---
 
-## Start and stop bot instances from Telegram
+## 14. Start and stop bot instances from Telegram
 
 Currently, starting the bot requires SSH or physical access to the machine. A lightweight management layer would allow lifecycle control from Telegram itself:
 
