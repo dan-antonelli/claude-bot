@@ -100,3 +100,46 @@ The current header is just the project name (e.g. `▶ narrat`). It could carry 
 - **Timestamp**: include the time the response was sent, useful for async workflows where you check Telegram later.
 - **Richer format**: a single compact header line like `▶ laptop · narrat · 14:32` covers machine, project, and time without extra messages.
 - The header format could be configurable via `.env` (e.g. `SHOW_HOSTNAME=true`) so single-machine setups stay minimal.
+
+---
+
+## Integrations — Narrat and NovelCrafter
+
+The bot currently treats all projects as generic code directories. Writing-focused tools deserve first-class support:
+
+- **Narrat**: since the game content lives in `.txt` scene files, Claude can already read and edit them — but a dedicated integration could surface game-specific context (current scene list, variable state, recent changes) automatically with each prompt, without the user having to ask.
+- **NovelCrafter**: if NovelCrafter exposes a local API or file-based export (codex entries, scene outlines, chapter drafts), the bot could inject that context into prompts — enabling things like "write the next scene consistent with the codex" without manual copy-paste.
+- Both integrations would live as optional project types in `projects.json` (e.g. `"type": "narrat"`) so the bot can tailor its context injection per project.
+
+---
+
+## General task automation via Telegram
+
+Beyond Claude Code, the bot's architecture (Telegram → subprocess → response) generalises to any shell-based task:
+
+- **Scheduled tasks**: trigger recurring jobs (git pull, backups, test runs) via `/run <task>` or on a cron schedule, with results sent to Telegram.
+- **System monitoring**: report disk usage, running processes, or service health on demand or on threshold breach.
+- **Script library**: define a set of named scripts in `tasks.json` (similar to `projects.json`) that map short command names to shell commands — e.g. `deploy`, `backup`, `status`.
+- This turns the bot into a general remote-control interface for the machine, not just a Claude Code bridge.
+
+---
+
+## Switchable AI backend
+
+The bot is hardcoded to invoke `claude`. Making the backend configurable would allow switching to other CLI-based AI tools without rewriting the bot:
+
+- **Supported backends**: Cursor CLI, the OpenAI CLI (`chatgpt`), Gemini CLI, or any tool that accepts a prompt via stdin/args and streams output.
+- Switch with a command like `/model cursor` or `/model chatgpt`, stored per-session or globally in `.env`.
+- Each backend gets a small adapter (argument format, output parsing) since their CLI interfaces differ. The rest of the bot — Telegram handling, tool notifications, session management — stays unchanged.
+- Useful for cost management (swap to a cheaper model for simple tasks) or capability comparison.
+
+---
+
+## Start and stop bot instances from Telegram
+
+Currently, starting the bot requires SSH or physical access to the machine. A lightweight management layer would allow lifecycle control from Telegram itself:
+
+- A minimal **watchdog process** runs permanently (e.g. as a systemd service) and listens for `/start`, `/stop`, and `/restart` commands over a side-channel (a named pipe, a local HTTP endpoint, or a second lightweight bot token).
+- The watchdog starts/stops the main `bot.py` process in response, and reports status back.
+- Useful for applying updates: push new code, send `/restart` from Telegram, done — no SSH needed.
+- Could also support `/update` which does a `git pull` and restarts in one step.
