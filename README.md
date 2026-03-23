@@ -106,6 +106,49 @@ python3 bot.py
 
 ---
 
+## Watchdog
+
+The watchdog is a separate process that runs independently of the bot. It monitors the bot for crashes and accepts lifecycle commands via a named pipe — including from Claude itself.
+
+**Why it exists:** the bot is Claude's parent process and communication channel. If Claude tries to restart the bot directly, it kills itself before the reply can be sent. The watchdog solves this by being the component that actually does the killing and restarting, then notifies you on Telegram when it's done.
+
+### Starting the watchdog
+
+```bash
+chmod +x start-watchdog.sh
+./start-watchdog.sh
+```
+
+Runs in its own tmux session (`claude-watchdog`), independent of `claude-bot`.
+
+### Commands
+
+Send commands by writing to the named pipe (default: `/tmp/claude-bot.fifo`):
+
+```bash
+echo restart > /tmp/claude-bot.fifo   # kill and relaunch the bot
+echo stop    > /tmp/claude-bot.fifo   # stop the bot
+echo start   > /tmp/claude-bot.fifo   # start the bot if it's not running
+echo status  > /tmp/claude-bot.fifo   # check if the bot is running
+```
+
+The watchdog sends a Telegram message for each action (e.g. "🔄 Restarting bot..." then "✅ Bot restarted.").
+
+**From Claude Code:** you can ask Claude to restart the bot and it will work correctly — Claude writes to the pipe and exits, the watchdog handles the rest and notifies you on Telegram.
+
+### Crash recovery
+
+If the bot dies unexpectedly while the watchdog is running, the watchdog automatically restarts it and sends "⚠️ Bot crashed — restarted." to Telegram.
+
+### Config
+
+Override the pipe path in `.env`:
+```env
+WATCHDOG_PIPE=/tmp/claude-bot.fifo
+```
+
+---
+
 ## Commands
 
 | Command | Description |

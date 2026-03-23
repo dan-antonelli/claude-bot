@@ -452,7 +452,7 @@ class TestRunClaude:
 
         with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
             update = make_update()
-            await bot.run_claude("do something", update)
+            await bot.run_claude("do something", update, asyncio.Event())
 
         update.message.reply_text.assert_called_with("All done!")
 
@@ -467,7 +467,7 @@ class TestRunClaude:
         proc = _make_proc(events)
 
         with patch("asyncio.create_subprocess_exec", return_value=proc):
-            await bot.run_claude("task", make_update())
+            await bot.run_claude("task", make_update(), asyncio.Event())
 
         assert bot.sessions["narrat"] == "saved-session"
 
@@ -480,7 +480,7 @@ class TestRunClaude:
         proc = _make_proc(events)
 
         with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
-            await bot.run_claude("task", make_update())
+            await bot.run_claude("task", make_update(), asyncio.Event())
 
         call_args = mock_exec.call_args[0]
         assert "--resume" in call_args
@@ -496,7 +496,7 @@ class TestRunClaude:
         proc = _make_proc(events)
 
         with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
-            await bot.run_claude("task", make_update())
+            await bot.run_claude("task", make_update(), asyncio.Event())
 
         call_args = mock_exec.call_args[0]
         assert "--resume" not in call_args
@@ -521,7 +521,7 @@ class TestRunClaude:
 
         with patch("asyncio.create_subprocess_exec", return_value=proc):
             update = make_update()
-            await bot.run_claude("task", update)
+            await bot.run_claude("task", update, asyncio.Event())
 
         calls = [c[0][0] for c in update.message.reply_text.call_args_list]
         tool_calls = [c for c in calls if c.startswith("⚙️")]
@@ -545,7 +545,7 @@ class TestRunClaude:
 
         with patch("asyncio.create_subprocess_exec", return_value=proc):
             update = make_update()
-            await bot.run_claude("task", update)
+            await bot.run_claude("task", update, asyncio.Event())
 
         calls = [c[0][0] for c in update.message.reply_text.call_args_list]
         tool_calls = [c for c in calls if c.startswith("⚙️")]
@@ -560,7 +560,7 @@ class TestRunClaude:
 
         with patch("asyncio.create_subprocess_exec", return_value=proc):
             update = make_update()
-            await bot.run_claude("task", update)
+            await bot.run_claude("task", update, asyncio.Event())
 
         text = update.message.reply_text.call_args[0][0]
         assert "⚠️" in text
@@ -575,7 +575,7 @@ class TestRunClaude:
 
         with patch("asyncio.create_subprocess_exec", return_value=proc):
             update = make_update()
-            await bot.run_claude("task", update)
+            await bot.run_claude("task", update, asyncio.Event())
 
         text = update.message.reply_text.call_args[0][0]
         assert "⚠️" in text
@@ -604,7 +604,7 @@ class TestRunClaude:
 
         with patch("asyncio.create_subprocess_exec", return_value=proc):
             update = make_update()
-            await bot.run_claude("task", update)
+            await bot.run_claude("task", update, asyncio.Event())
 
         update.message.reply_text.assert_called_with("ok")
 
@@ -643,7 +643,10 @@ class TestHandleMessage:
         with patch.object(bot, "run_claude", new=AsyncMock()) as mock_run:
             await bot.handle_message(update, make_context())
 
-        mock_run.assert_awaited_once_with("hello claude", update)
+        mock_run.assert_awaited_once()
+        args = mock_run.call_args[0]
+        assert args[0] == "hello claude"
+        assert args[1] is update
 
     async def test_sends_project_name_before_running(self):
         bot.projects = [{"name": "narrat", "dir": "/tmp"}]
