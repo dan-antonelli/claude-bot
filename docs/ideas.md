@@ -213,3 +213,16 @@ Right now each Claude instance (Telegram bot, VSCode extension, terminal session
 - **Directed messaging**: you can tell one instance to "send this to the other Claude" — e.g. from VSCode: "tell the Telegram bot to run the tests and report back." The receiving instance acts on the message as if the user sent it.
 - **Broadcast vs. targeted**: some messages go to all instances (e.g. "new commit pushed"), others are point-to-point ("hey, Telegram bot, what's the status of the narrat project?").
 - Ties into idea 9 (multi-machine control) — cross-instance communication is the single-machine version of the same problem. A shared message broker handles both if designed for it.
+
+---
+
+## 20. More verbose status messages
+
+Currently, status notifications are terse (e.g. "✅ Bot restarted.", "⚠️ Bot crashed — restarted."). Adding more context would make it easier to diagnose issues from Telegram without having to SSH in and read logs.
+
+- **Watchdog startup**: include the Python version, watchdog PID, and FIFO path — e.g. "👀 Watchdog started (pid 1234, pipe /tmp/claude-bot.fifo)."
+- **Bot crash/restart**: include a timestamp and restart count so it's clear how often the bot is cycling — e.g. "⚠️ Bot crashed — restarting (attempt 3 today)."
+- **Health check failures**: if the bot fails to start after a restart attempt, report why (e.g. `start-bot.sh` exit code, whether the tmux session appeared).
+- **Shutdown**: distinguish clean shutdown (SIGTERM) from a hard kill, and include uptime — e.g. "🔴 Bot stopped after 4h 12m."
+- **Command acknowledgement**: when a command (restart, stop, start) is received via the FIFO, echo it back to Telegram immediately so there's confirmation the watchdog saw it, before the action completes.
+- Could be gated behind a `VERBOSE=true` env var so the default stays quiet for users who prefer minimal noise.
