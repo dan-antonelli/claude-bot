@@ -241,12 +241,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             typing_done.set()
             await typing_task
 
+# ── Startup ───────────────────────────────────────────────────────────────────
+
+async def on_startup(app) -> None:
+    await app.bot.send_message(
+        chat_id=CHAT_ID,
+        text=f"👋 Bot started. Active project: {active_project}",
+    )
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
     app = (
         Application.builder()
         .token(BOT_TOKEN)
+        .post_init(on_startup)
         .build()
     )
 

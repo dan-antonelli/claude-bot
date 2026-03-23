@@ -671,3 +671,40 @@ class TestHandleMessage:
         error_msgs = [c for c in calls if "⚠️" in c]
         assert error_msgs
         assert "boom" in error_msgs[0]
+
+
+# ── on_startup ────────────────────────────────────────────────────────────────
+
+class TestOnStartup:
+    def setup_method(self):
+        self._orig_active = bot.active_project
+        self._orig_projects = bot.projects[:]
+
+    def teardown_method(self):
+        bot.active_project = self._orig_active
+        bot.projects[:] = self._orig_projects
+
+    async def test_sends_greeting_to_chat(self):
+        bot.active_project = "narrat"
+        bot.projects = [{"name": "narrat", "dir": "/tmp"}]
+
+        mock_app = MagicMock()
+        mock_app.bot.send_message = AsyncMock()
+
+        await bot.on_startup(mock_app)
+
+        mock_app.bot.send_message.assert_awaited_once()
+        kwargs = mock_app.bot.send_message.call_args.kwargs
+        assert kwargs["chat_id"] == bot.CHAT_ID
+
+    async def test_greeting_includes_active_project(self):
+        bot.active_project = "narrat"
+        bot.projects = [{"name": "narrat", "dir": "/tmp"}]
+
+        mock_app = MagicMock()
+        mock_app.bot.send_message = AsyncMock()
+
+        await bot.on_startup(mock_app)
+
+        kwargs = mock_app.bot.send_message.call_args.kwargs
+        assert "narrat" in kwargs["text"]
