@@ -158,3 +158,18 @@ Claude Code has a rich set of interactive modes and slash commands that are unav
 - `/ask <prompt>` — pure Q&A mode, no file modifications allowed (via `--allowedTools` restriction).
 
 Each wrapper is just a bot command that prepends a fixed system instruction to the user's message and optionally adjusts the `--allowedTools` flag passed to `claude -p`. No changes to Claude itself are needed — the behaviour is shaped entirely by the prompt.
+
+---
+
+## 16. Dynamic configuration — live reload without restart
+
+Some configuration (aliases, project list, tool permissions) currently requires editing files and restarting the bot to take effect. A live-reloadable config layer would allow changes to be applied instantly from Telegram itself:
+
+- **Storage**: SQLite is the natural fit — a single `config.db` holds all mutable config (aliases, projects, settings) and is read on every request, so changes are picked up immediately with no restart.
+- **Manage from Telegram**: dedicated commands to create, update, and remove config entries on the fly:
+  - `/alias add <name> <expansion>` — define a new alias (e.g. `/alias add standup "summarise what changed today"`)
+  - `/alias remove <name>` — delete an alias
+  - `/alias list` — show all current aliases
+  - Same pattern for projects: `/project add <name> <path>`, `/project remove <name>`
+- **Fallback**: JSON files (`aliases.json`, `projects.json`) remain as the seed/default config on first run; the database is populated from them and takes over from there.
+- **Hot path**: on each incoming message, the bot checks the alias table first — if the message matches a defined alias, it expands it before forwarding to Claude. No bot restart, no file editing, no SSH.
