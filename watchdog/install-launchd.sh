@@ -44,6 +44,7 @@ cat > "$PLIST" <<PLIST_EOF
 </plist>
 PLIST_EOF
 
+launchctl unload "$PLIST" 2>/dev/null || true
 launchctl load "$PLIST"
 echo "Watchdog installed as launchd service (com.claude-bot.watchdog)."
 echo "Logs: tail -f /tmp/claude-watchdog.log"
