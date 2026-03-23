@@ -36,3 +36,27 @@ pip3 install python-telegram-bot python-dotenv pytest pytest-asyncio
 - Sessions are keyed by project name and passed via `--resume <session_id>` for conversation continuity
 - A single `asyncio.Lock` serializes all Claude invocations — concurrent messages are queued, not dropped
 - `TELEGRAM_CHAT_ID` is the only authorization check; all other chat IDs are silently ignored
+
+## Watchdog
+
+A separate `watchdog.py` runs in its own tmux session (`claude-watchdog`), independent of the bot. It monitors the bot and accepts lifecycle commands via a named pipe.
+
+**Start it:**
+```bash
+./start-watchdog.sh
+```
+
+**Trigger a restart from within Claude Code (e.g. after deploying changes):**
+```bash
+echo restart > /tmp/claude-bot.fifo
+```
+The watchdog will send "🔄 Restarting bot..." to Telegram, kill the `claude-bot` session, relaunch it via `start-bot.sh`, then send "✅ Bot restarted." — all without killing itself.
+
+**Other commands:**
+```bash
+echo stop   > /tmp/claude-bot.fifo
+echo start  > /tmp/claude-bot.fifo
+echo status > /tmp/claude-bot.fifo
+```
+
+**Config:** `WATCHDOG_PIPE` in `.env` overrides the default pipe path (`/tmp/claude-bot.fifo`).
