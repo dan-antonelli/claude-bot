@@ -186,3 +186,17 @@ The bot currently has no visibility into what Claude processes are actually runn
 - **Start**: `/start <project>` launches a new Claude session for a project that has none active, without sending a prompt — useful for warming up a session before you're ready to use it.
 - Implementation: track subprocess handles in the existing `sessions` dict (or a parallel `processes` dict), and expose the lifecycle commands as Telegram bot handlers. `/kill` sends `SIGTERM`; `/restart` does kill + start in sequence.
 - Pairs naturally with the watchdog idea (idea 14) — together they give full remote control over both the bot process itself and the Claude subprocesses it manages.
+
+---
+
+## 18. Task queue with side-channel messaging
+
+Currently, messages sent while Claude is working are implicitly queued by the asyncio lock — they run sequentially, one after another. But there is no way to interact with the queue or send a side note while a task is in flight.
+
+- **`/queue`**: show what tasks are waiting (message text, time queued). Makes the implicit queue visible.
+- **`/cancel`**: drop the next queued task without running it, or cancel the currently running one (sends `SIGTERM` to the Claude subprocess and releases the lock).
+- **`/btw <note>`**: append a follow-up note to the *currently running* prompt. Implementation options:
+  - Simple: buffer the note and prepend it to the next queued message as context ("Previously you were asked to X; also note: Y").
+  - Advanced: inject it into the live Claude session mid-run by writing to the subprocess stdin (only viable if Claude supports mid-session injection, which it currently does not in `-p` mode — so the simple buffering approach is more realistic).
+- **`/skip`**: discard all queued messages and only run the most recently sent one — useful when you've changed your mind mid-task.
+- The queue itself is just a Python `asyncio.Queue` replacing the current implicit lock-wait behaviour. Each item holds the message text and the originating `Update` object so replies go back to the right chat.
