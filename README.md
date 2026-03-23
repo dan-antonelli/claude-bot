@@ -108,9 +108,14 @@ python3 bot.py
 
 ## Watchdog
 
-The watchdog is a separate process that runs independently of the bot. It monitors the bot for crashes and accepts lifecycle commands via a named pipe — including from Claude itself.
+The watchdog (`watchdog/watchdog.py`) is a small independent process that sits beside the bot and owns its lifecycle. It runs in a separate tmux session, has no dependency on the bot, and cannot be killed by the bot restarting.
 
-**Why it exists:** the bot is Claude's parent process and communication channel. If Claude tries to restart the bot directly, it kills itself before the reply can be sent. The watchdog solves this by being the component that actually does the killing and restarting, then notifies you on Telegram when it's done.
+**What it does:**
+- Monitors the bot every 5 seconds. If the bot dies unexpectedly, it restarts it automatically.
+- Accepts commands via a named pipe so you — or Claude — can trigger restarts, stops, and status checks without SSH.
+- Sends Telegram notifications for every lifecycle event: startup, restart, stop, crash recovery.
+
+**Why it exists:** the bot is Claude's parent process and communication channel. If Claude tries to restart the bot directly, it kills itself mid-execution and no reply is ever sent. The watchdog lives outside this loop — Claude writes a one-word command to a pipe and exits cleanly, then the watchdog handles the rest and confirms on Telegram.
 
 ### Starting the watchdog
 
@@ -150,6 +155,8 @@ chmod +x watchdog/install-launchd.sh
 ```
 
 This stops the tmux session (if running), generates a plist at `~/Library/LaunchAgents/com.claude-bot.watchdog.plist`, and loads it. launchd will restart the watchdog on crash and on every login. The watchdog sends "👀 Watchdog started." to Telegram on each restart.
+
+> **Note — macOS Full Disk Access:** if the repo lives in `~/Documents`, `~/Desktop`, or `~/Downloads`, macOS blocks the system `python3` from reading files there when run by launchd. Fix: open **System Settings → Privacy & Security → Full Disk Access** and add `python3` (at `/usr/bin/python3`) or your terminal app. Then reload: `launchctl unload ~/Library/LaunchAgents/com.claude-bot.watchdog.plist && ./watchdog/install-launchd.sh`.
 
 Uninstall:
 ```bash

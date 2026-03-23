@@ -22,11 +22,11 @@ cat > "$PLIST" <<PLIST_EOF
   <string>com.claude-bot.watchdog</string>
   <key>ProgramArguments</key>
   <array>
-    <string>$PYTHON</string>
-    <string>$REPO/watchdog/watchdog.py</string>
+    <string>/bin/bash</string>
+    <string>-l</string>
+    <string>-c</string>
+    <string>cd '$REPO' && $PYTHON watchdog/watchdog.py</string>
   </array>
-  <key>WorkingDirectory</key>
-  <string>$REPO</string>
   <key>KeepAlive</key>
   <true/>
   <key>RunAtLoad</key>
