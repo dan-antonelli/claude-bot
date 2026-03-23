@@ -5,6 +5,7 @@ This is a Telegram bot that forwards natural-language prompts to Claude Code (`c
 
 ## Key files
 - [bot.py](bot.py) — main bot logic (Telegram handlers, Claude invocation, session management)
+- [setup.sh](setup.sh) — one-shot setup: install deps, start watchdog via launchd, run self-tests
 - [projects.json](projects.json) — list of `{name, dir}` project entries
 - [test_bot.py](test_bot.py) — pytest test suite
 - [conftest.py](conftest.py) — pytest fixtures

@@ -2,8 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+- `setup.sh`: one-shot setup script — installs Python dependencies, installs watchdog as launchd service, waits for watchdog and bot to start, runs full test suite as self-test
+
+### Fixed
+- `docs/architecture.md`: corrected right-column alignment in ASCII system diagram (all box lines now consistently 67 chars wide)
+
 ### Changed
 - `CLAUDE.md`: added rule to always update `CHANGELOG.md` after every committed change
+- `CLAUDE.md`: added `setup.sh` to key files list
+- `README.md`: documented `setup.sh` in Installation section
+- `docs/architecture.md`: added `setup.sh` to Components table
 
 ---
 

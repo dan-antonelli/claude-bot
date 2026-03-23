@@ -6,30 +6,30 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Your machine                             │
 │                                                                 │
-│  ┌─────────────────────────┐   ┌─────────────────────────────┐ │
-│  │   tmux: claude-bot      │   │   tmux: claude-watchdog     │ │
-│  │                         │   │                             │ │
-│  │  ┌───────────────────┐  │   │  ┌───────────────────────┐  │ │
-│  │  │     bot.py        │  │   │  │     watchdog.py        │  │ │
-│  │  │                   │  │   │  │                        │  │ │
-│  │  │  asyncio event    │  │   │  │  monitors bot tmux     │  │ │
-│  │  │  loop + lock      │  │   │  │  session health        │  │ │
-│  │  │                   │  │   │  │                        │  │ │
-│  │  │  spawns claude -p │  │   │  │  reads /tmp/           │  │ │
-│  │  │  subprocess per   │◄─┼───┼──│  claude-bot.fifo      │  │ │
-│  │  │  message          │  │   │  │  (named pipe)          │  │ │
-│  │  └────────┬──────────┘  │   │  └──────────┬────────────┘  │ │
-│  │           │             │   │             │                │ │
-│  │  ┌────────▼──────────┐  │   │             │                │ │
-│  │  │  claude -p        │  │   │             │                │ │
-│  │  │  (subprocess)     │  │   │             │                │ │
-│  │  │                   │  │   │             │                │ │
-│  │  │  stream-json      │  │   │             │                │ │
-│  │  │  stdout           │  │   │             │                │ │
-│  │  └───────────────────┘  │   │             │                │ │
-│  └─────────────────────────┘   └─────────────┼───────────────┘ │
-│                                              │                  │
-│         projects.json, .env ◄────────────────┘                  │
+│  ┌─────────────────────────┐   ┌───────────────────────────┐    │
+│  │   tmux: claude-bot      │   │  tmux: claude-watchdog    │    │
+│  │                         │   │                           │    │
+│  │  ┌───────────────────┐  │   │  ┌─────────────────────┐  │    │
+│  │  │     bot.py        │  │   │  │    watchdog.py      │  │    │
+│  │  │                   │  │   │  │                     │  │    │
+│  │  │  asyncio event    │  │   │  │  monitors bot tmux  │  │    │
+│  │  │  loop + lock      │  │   │  │  session health     │  │    │
+│  │  │                   │  │   │  │                     │  │    │
+│  │  │  spawns claude -p │  │   │  │  reads /tmp/        │  │    │
+│  │  │  subprocess per   │◄─┼───┼──│  claude-bot.fifo    │  │    │
+│  │  │  message          │  │   │  │  (named pipe)       │  │    │
+│  │  └────────┬──────────┘  │   │  └─────────┬───────────┘  │    │
+│  │           │             │   │            │              │    │
+│  │  ┌────────▼──────────┐  │   │            │              │    │
+│  │  │  claude -p        │  │   │            │              │    │
+│  │  │  (subprocess)     │  │   │            │              │    │
+│  │  │                   │  │   │            │              │    │
+│  │  │  stream-json      │  │   │            │              │    │
+│  │  │  stdout           │  │   │            │              │    │
+│  │  └───────────────────┘  │   │            │              │    │
+│  └─────────────────────────┘   └────────────┼──────────────┘    │
+│                                             │                   │
+│         projects.json, .env ◄───────────────┘                   │
 └──────────────────────┬──────────────────────┬───────────────────┘
                        │                      │
                        │ HTTPS polling         │ HTTPS (sendMessage)
@@ -101,6 +101,7 @@ You (Telegram) ──► Claude Code (in project dir)
 |---|---|---|---|
 | Bot | `bot.py` | `claude-bot` | Handles Telegram messages, invokes Claude |
 | Watchdog | `watchdog/watchdog.py` | `claude-watchdog` | Lifecycle control, crash recovery |
+| Setup | `setup.sh` | — | One-shot install: deps, launchd, self-test |
 | Launcher (bot) | `start-bot.sh` | — | Starts bot in tmux |
 | Launcher (watchdog) | `watchdog/start.sh` | — | Starts watchdog in tmux |
 | Config | `projects.json` | — | Project name → directory mapping |

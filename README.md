@@ -64,6 +64,12 @@ cd ~/.claude-bot
 cp .env.example .env
 ```
 
+After filling in `.env`, run the setup script to install dependencies, start the watchdog as a launchd service, and verify everything works:
+
+```bash
+./setup.sh
+```
+
 Edit `.env`:
 
 ```env
