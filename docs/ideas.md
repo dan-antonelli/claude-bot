@@ -143,3 +143,18 @@ Currently, starting the bot requires SSH or physical access to the machine. A li
 - The watchdog starts/stops the main `bot.py` process in response, and reports status back.
 - Useful for applying updates: push new code, send `/restart` from Telegram, done — no SSH needed.
 - Could also support `/update` which does a `git pull` and restarts in one step.
+
+---
+
+## 15. Telegram wrappers for Claude Code modes and commands
+
+Claude Code has a rich set of interactive modes and slash commands that are unavailable in non-interactive `-p` mode. These could be exposed as Telegram bot commands by wrapping the prompt with the appropriate instruction prefix:
+
+- `/plan <prompt>` — prepends "Plan the following task step by step. Do not write or modify any code — only describe your approach:" before forwarding to Claude.
+- `/review` — asks Claude to review the current state of the active project without making changes.
+- `/commit` — triggers a commit workflow: Claude stages, writes a message, and commits.
+- `/test` — runs the project's test suite and reports results.
+- `/explain <prompt>` — asks Claude to explain a piece of code or behaviour without changing anything.
+- `/ask <prompt>` — pure Q&A mode, no file modifications allowed (via `--allowedTools` restriction).
+
+Each wrapper is just a bot command that prepends a fixed system instruction to the user's message and optionally adjusts the `--allowedTools` flag passed to `claude -p`. No changes to Claude itself are needed — the behaviour is shaped entirely by the prompt.
