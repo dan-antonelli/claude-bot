@@ -230,11 +230,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     async with lock:
         proj = get_project(active_project)
         await send(update, f"▶ {proj['name']}")
+        typing_done = asyncio.Event()
+        typing_task = asyncio.create_task(typing_loop(update, typing_done))
         try:
-            await run_claude(user_text, update)
+            await run_claude(user_text, update, typing_done)
         except Exception as e:
             log.exception("Error running claude")
             await send(update, f"⚠️ Error: {e}")
+        finally:
+            typing_done.set()
+            await typing_task
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
