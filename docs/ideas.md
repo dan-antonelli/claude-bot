@@ -200,3 +200,16 @@ Currently, messages sent while Claude is working are implicitly queued by the as
   - Advanced: inject it into the live Claude session mid-run by writing to the subprocess stdin (only viable if Claude supports mid-session injection, which it currently does not in `-p` mode — so the simple buffering approach is more realistic).
 - **`/skip`**: discard all queued messages and only run the most recently sent one — useful when you've changed your mind mid-task.
 - The queue itself is just a Python `asyncio.Queue` replacing the current implicit lock-wait behaviour. Each item holds the message text and the originating `Update` object so replies go back to the right chat.
+
+---
+
+## 19. Cross-instance communication and shared context
+
+Right now each Claude instance (Telegram bot, VSCode extension, terminal session) is isolated — they share no state, no conversation history, and cannot address each other. The goal is to let instances communicate freely: share context, post into the same Telegram chat, hand off tasks, and stay aware of what other instances on the same machine (or across machines) are doing.
+
+- **Shared Telegram chat**: any Claude instance — not just the bot — should be able to post a message into the Telegram chat if told to. For example, a Claude session running in the VSCode extension could send a status update or ask a question directly into the chat, without the user having to copy-paste it.
+- **Shared context / session handoff**: if you've been working with one instance and switch to another, the new instance should be able to pick up the conversation context — recent messages, active project, session ID — so it doesn't start cold.
+- **Instance discovery**: instances announce themselves on a local bus (the watchdog's named pipe is a rough precedent; a proper shared message broker like Redis pub/sub or a Unix domain socket hub would generalise this). Each instance knows what other instances exist and what they're currently doing.
+- **Directed messaging**: you can tell one instance to "send this to the other Claude" — e.g. from VSCode: "tell the Telegram bot to run the tests and report back." The receiving instance acts on the message as if the user sent it.
+- **Broadcast vs. targeted**: some messages go to all instances (e.g. "new commit pushed"), others are point-to-point ("hey, Telegram bot, what's the status of the narrat project?").
+- Ties into idea 9 (multi-machine control) — cross-instance communication is the single-machine version of the same problem. A shared message broker handles both if designed for it.
