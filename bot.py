@@ -9,14 +9,12 @@ import asyncio
 import json
 import logging
 import os
-import signal
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from dotenv import load_dotenv
 from telegram import Update
-from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -37,16 +35,17 @@ log = logging.getLogger(__name__)
 
 # ── State ─────────────────────────────────────────────────────────────────────
 
-def load_projects() -> List[Dict]:
+def load_projects() -> list[dict]:
     with open(PROJECTS_FILE) as f:
         return json.load(f)
 
-projects: List[Dict] = load_projects()
+projects: list[dict] = load_projects()
 active_project: str = projects[0]["name"]
-sessions: Dict[str, str] = {}   # project_name → session_id
+sessions: dict[str, str] = {}  # project_name → session_id
 lock = asyncio.Lock()
 
-def get_project(name: str) -> Optional[Dict]:
+
+def get_project(name: str) -> Optional[dict]:
     return next((p for p in projects if p["name"] == name), None)
 
 def active_dir() -> str:
@@ -62,6 +61,16 @@ async def send(update: Update, text: str) -> None:
 
 def is_authorized(update: Update) -> bool:
     return update.effective_chat.id == CHAT_ID
+
+async def typing_loop(update: Update, stop_event: asyncio.Event) -> None:
+    """Send the Telegram 'typing' action every 4 s until stop_event is set."""
+    while not stop_event.is_set():
+        await update.effective_chat.send_action("typing")
+        try:
+            await asyncio.wait_for(asyncio.shield(stop_event.wait()), timeout=4)
+        except asyncio.TimeoutError:
+            pass
+
 
 def tool_summary(name: str, inp: dict) -> str:
     """One-line summary of a tool call."""
@@ -135,7 +144,7 @@ async def cmd_reload(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
 
 # ── Claude invocation ─────────────────────────────────────────────────────────
 
-async def run_claude(user_text: str, update: Update) -> None:
+async def run_claude(user_text: str, update: Update, typing_done: asyncio.Event) -> None:
     project = get_project(active_project)
     cwd = project["dir"]
     session_id = sessions.get(active_project)
@@ -156,6 +165,7 @@ async def run_claude(user_text: str, update: Update) -> None:
         cwd=cwd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        limit=10 * 1024 * 1024,  # 10 MB — default 64 KB is too small for large Claude output
     )
 
     seen_tools: set[str] = set()
@@ -182,6 +192,7 @@ async def run_claude(user_text: str, update: Update) -> None:
                         seen_tools.add(key)
                         name = block["name"]
                         summary = tool_summary(name, block.get("input", {}))
+                        typing_done.set()
                         await update.message.reply_text(f"⚙️ {name}: {summary}")
 
         # Final result
@@ -196,6 +207,7 @@ async def run_claude(user_text: str, update: Update) -> None:
         sessions[active_project] = new_session_id
         log.info("Saved session %s for project %s", new_session_id, active_project)
 
+    typing_done.set()
     if result_text:
         await send(update, result_text)
     else:
