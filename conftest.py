@@ -1,5 +1,5 @@
 import os
 
-# Must be set before bot.py is imported (module-level env reads)
-os.environ.setdefault("TELEGRAM_BOT_TOKEN", "111111111:test_token_for_pytest")
-os.environ.setdefault("TELEGRAM_CHAT_ID", "999")
+# Override env vars unconditionally so shell-level values don't pollute tests.
+os.environ["TELEGRAM_BOT_TOKEN"] = "111111111:test_token_for_pytest"
+os.environ["TELEGRAM_CHAT_ID"] = "999"

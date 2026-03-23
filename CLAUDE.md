@@ -29,6 +29,7 @@ pip3 install python-telegram-bot python-dotenv pytest pytest-asyncio
 ## Development approach
 - **TDD**: write tests before implementation. A feature isn't started until its test exists.
 - **Iterative**: keep running tests and fixing errors until everything passes. Never leave a task in a broken state.
+- **Plans**: before implementing any non-trivial feature, write a plan to `docs/<feature-name>.md`. The `docs/` directory is gitignored — plans are local only and never versioned.
 
 ## Architecture notes
 - `run_claude()` spawns `claude -p` as a subprocess with `--output-format stream-json --verbose --include-partial-messages`

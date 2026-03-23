@@ -21,9 +21,9 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 
 load_dotenv(Path(__file__).parent / ".env")
 
-BOT_TOKEN   = os.environ["TELEGRAM_BOT_TOKEN"]
-CHAT_ID     = int(os.environ["TELEGRAM_CHAT_ID"])
-CLAUDE_BIN  = os.environ.get("CLAUDE_BIN", "claude")
+BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+CHAT_ID = int(os.environ["TELEGRAM_CHAT_ID"])
+CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "claude")
 PROJECTS_FILE = Path(__file__).parent / "projects.json"
 
 logging.basicConfig(
@@ -35,9 +35,11 @@ log = logging.getLogger(__name__)
 
 # ── State ─────────────────────────────────────────────────────────────────────
 
+
 def load_projects() -> list[dict]:
     with open(PROJECTS_FILE) as f:
         return json.load(f)
+
 
 projects: list[dict] = load_projects()
 active_project: str = projects[0]["name"]
@@ -48,19 +50,25 @@ lock = asyncio.Lock()
 def get_project(name: str) -> Optional[dict]:
     return next((p for p in projects if p["name"] == name), None)
 
+
 def active_dir() -> str:
     return get_project(active_project)["dir"]
 
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def truncate(text: str, limit: int = 4000) -> str:
     return text if len(text) <= limit else text[:limit] + "\n…"
 
+
 async def send(update: Update, text: str) -> None:
     await update.message.reply_text(truncate(text))
 
+
 def is_authorized(update: Update) -> bool:
     return update.effective_chat.id == CHAT_ID
+
 
 async def typing_loop(update: Update, stop_event: asyncio.Event) -> None:
     """Send the Telegram 'typing' action every 4 s until stop_event is set."""
@@ -86,12 +94,14 @@ def tool_summary(name: str, inp: dict) -> str:
     if name == "Glob":
         return inp.get("pattern", "")
     if name == "Grep":
-        return f'"{inp.get("pattern","")}"'
+        return f'"{inp.get("pattern", "")}"'
     if name == "WebSearch":
         return inp.get("query", "")
     return json.dumps(inp)[:80]
 
+
 # ── Commands ──────────────────────────────────────────────────────────────────
+
 
 async def cmd_projects(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_authorized(update):
@@ -102,6 +112,7 @@ async def cmd_projects(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         session_note = " [session active]" if p["name"] in sessions else ""
         lines.append(f"{marker} {p['name']} — {p['dir']}{session_note}")
     await send(update, "\n".join(lines))
+
 
 async def cmd_use(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     global active_project
@@ -120,11 +131,13 @@ async def cmd_use(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     session_note = " (existing session)" if name in sessions else " (no session yet)"
     await send(update, f"Switched to {name}{session_note}")
 
+
 async def cmd_new(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_authorized(update):
         return
     sessions.pop(active_project, None)
     await send(update, f"Session cleared for {active_project}. Next message starts fresh.")
+
 
 async def cmd_session(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_authorized(update):
@@ -135,6 +148,7 @@ async def cmd_session(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         await send(update, f"Project: {active_project}\nNo session yet.")
 
+
 async def cmd_reload(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     global projects
     if not is_authorized(update):
@@ -142,7 +156,9 @@ async def cmd_reload(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     projects = load_projects()
     await send(update, f"Reloaded {len(projects)} projects.")
 
+
 # ── Claude invocation ─────────────────────────────────────────────────────────
+
 
 async def run_claude(user_text: str, update: Update, typing_done: asyncio.Event) -> None:
     project = get_project(active_project)
@@ -150,11 +166,15 @@ async def run_claude(user_text: str, update: Update, typing_done: asyncio.Event)
     session_id = sessions.get(active_project)
 
     args = [
-        CLAUDE_BIN, "-p", user_text,
-        "--output-format", "stream-json",
+        CLAUDE_BIN,
+        "-p",
+        user_text,
+        "--output-format",
+        "stream-json",
         "--verbose",
         "--include-partial-messages",
-        "--allowedTools", "Bash,Read,Write,Edit,Glob,Grep,WebSearch",
+        "--allowedTools",
+        "Bash,Read,Write,Edit,Glob,Grep,WebSearch",
     ]
     if session_id:
         args += ["--resume", session_id]
@@ -215,7 +235,9 @@ async def run_claude(user_text: str, update: Update, typing_done: asyncio.Event)
         err = stderr[:500] if stderr else "Claude returned no output."
         await send(update, f"⚠️ {err}")
 
+
 # ── Message handler ───────────────────────────────────────────────────────────
+
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not is_authorized(update):
@@ -239,28 +261,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await send(update, f"⚠️ Error: {e}")
         finally:
             typing_done.set()
-            await typing_task
+            typing_task.cancel()
+
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def main() -> None:
-    app = (
-        Application.builder()
-        .token(BOT_TOKEN)
-        .build()
-    )
+    app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("projects", cmd_projects))
-    app.add_handler(CommandHandler("use",      cmd_use))
-    app.add_handler(CommandHandler("new",      cmd_new))
-    app.add_handler(CommandHandler("session",  cmd_session))
-    app.add_handler(CommandHandler("reload",   cmd_reload))
+    app.add_handler(CommandHandler("use", cmd_use))
+    app.add_handler(CommandHandler("new", cmd_new))
+    app.add_handler(CommandHandler("session", cmd_session))
+    app.add_handler(CommandHandler("reload", cmd_reload))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     log.info("Bot started. Active project: %s", active_project)
     log.info("Projects: %s", [p["name"] for p in projects])
 
     app.run_polling(drop_pending_updates=True)
+
 
 if __name__ == "__main__":
     main()

@@ -5,23 +5,20 @@ conftest.py sets TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID before this module
 is imported, so the module-level env reads in bot.py succeed.
 """
 
-import json
-import os
 import asyncio
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch, mock_open
-
-import pytest
+import json
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import bot
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def make_update(text: str = "", chat_id: int = 999) -> MagicMock:
     """Build a minimal mock telegram Update."""
     update = MagicMock()
     update.effective_chat.id = chat_id
+    update.effective_chat.send_action = AsyncMock()
     update.message.text = text
     update.message.reply_text = AsyncMock()
     return update
@@ -32,6 +29,7 @@ def make_context() -> MagicMock:
 
 
 # ── truncate ──────────────────────────────────────────────────────────────────
+
 
 class TestTruncate:
     def test_short_string_unchanged(self):
@@ -61,6 +59,7 @@ class TestTruncate:
 
 
 # ── tool_summary ──────────────────────────────────────────────────────────────
+
 
 class TestToolSummary:
     def test_read(self):
@@ -112,6 +111,7 @@ class TestToolSummary:
 
 # ── get_project ───────────────────────────────────────────────────────────────
 
+
 class TestGetProject:
     def setup_method(self):
         self._orig = bot.projects[:]
@@ -143,6 +143,7 @@ class TestGetProject:
 
 # ── is_authorized ─────────────────────────────────────────────────────────────
 
+
 class TestIsAuthorized:
     def test_authorized(self):
         update = make_update(chat_id=999)
@@ -158,6 +159,7 @@ class TestIsAuthorized:
 
 
 # ── load_projects ─────────────────────────────────────────────────────────────
+
 
 class TestLoadProjects:
     def test_loads_valid_json(self, tmp_path):
@@ -182,6 +184,7 @@ class TestLoadProjects:
 
 
 # ── Command handlers ───────────────────────────────────────────────────────────
+
 
 class TestCmdProjects:
     def setup_method(self):
@@ -396,7 +399,56 @@ class TestCmdReload:
         update.message.reply_text.assert_not_called()
 
 
+# ── typing_loop ───────────────────────────────────────────────────────────────
+
+
+class TestTypingLoop:
+    async def test_sends_typing_action_and_stops_on_event(self):
+        """Sends at least one typing action, then exits when stop_event is set."""
+        update = make_update()
+        stop_event = asyncio.Event()
+
+        async def set_event(_action):
+            stop_event.set()
+
+        update.effective_chat.send_action.side_effect = set_event
+
+        await bot.typing_loop(update, stop_event)
+
+        update.effective_chat.send_action.assert_called_once_with("typing")
+
+    async def test_does_not_send_if_event_already_set(self):
+        """If stop_event is pre-set, typing_loop exits without sending anything."""
+        update = make_update()
+        stop_event = asyncio.Event()
+        stop_event.set()
+
+        await bot.typing_loop(update, stop_event)
+
+        update.effective_chat.send_action.assert_not_called()
+
+    async def test_sends_multiple_actions_across_iterations(self):
+        """Simulates timeout-based re-firing by patching wait_for to timeout immediately."""
+        update = make_update()
+        stop_event = asyncio.Event()
+        call_count = 0
+
+        async def count_and_maybe_stop(_action):
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 3:
+                stop_event.set()
+
+        update.effective_chat.send_action.side_effect = count_and_maybe_stop
+
+        with patch("bot.asyncio.wait_for", side_effect=asyncio.TimeoutError):
+            await bot.typing_loop(update, stop_event)
+
+        assert call_count == 3
+
+
 # ── run_claude ─────────────────────────────────────────────────────────────────
+
 
 def _make_stream(*events: dict):
     """Return an async iterator that yields JSON-encoded event lines."""
@@ -413,7 +465,7 @@ def _make_stream(*events: dict):
             try:
                 return next(self._lines)
             except StopIteration:
-                raise StopAsyncIteration
+                raise StopAsyncIteration from None
 
     return _AsyncIter()
 
@@ -450,9 +502,9 @@ class TestRunClaude:
         ]
         proc = _make_proc(events)
 
-        with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
+        with patch("asyncio.create_subprocess_exec", return_value=proc):
             update = make_update()
-            await bot.run_claude("do something", update)
+            await bot.run_claude("do something", update, asyncio.Event())
 
         update.message.reply_text.assert_called_with("All done!")
 
@@ -467,7 +519,7 @@ class TestRunClaude:
         proc = _make_proc(events)
 
         with patch("asyncio.create_subprocess_exec", return_value=proc):
-            await bot.run_claude("task", make_update())
+            await bot.run_claude("task", make_update(), asyncio.Event())
 
         assert bot.sessions["narrat"] == "saved-session"
 
@@ -480,7 +532,7 @@ class TestRunClaude:
         proc = _make_proc(events)
 
         with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
-            await bot.run_claude("task", make_update())
+            await bot.run_claude("task", make_update(), asyncio.Event())
 
         call_args = mock_exec.call_args[0]
         assert "--resume" in call_args
@@ -496,7 +548,7 @@ class TestRunClaude:
         proc = _make_proc(events)
 
         with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
-            await bot.run_claude("task", make_update())
+            await bot.run_claude("task", make_update(), asyncio.Event())
 
         call_args = mock_exec.call_args[0]
         assert "--resume" not in call_args
@@ -511,7 +563,12 @@ class TestRunClaude:
                 "type": "assistant",
                 "message": {
                     "content": [
-                        {"type": "tool_use", "id": "t1", "name": "Read", "input": {"file_path": "/foo.py"}},
+                        {
+                            "type": "tool_use",
+                            "id": "t1",
+                            "name": "Read",
+                            "input": {"file_path": "/foo.py"},
+                        },  # noqa: E501
                     ]
                 },
             },
@@ -521,7 +578,7 @@ class TestRunClaude:
 
         with patch("asyncio.create_subprocess_exec", return_value=proc):
             update = make_update()
-            await bot.run_claude("task", update)
+            await bot.run_claude("task", update, asyncio.Event())
 
         calls = [c[0][0] for c in update.message.reply_text.call_args_list]
         tool_calls = [c for c in calls if c.startswith("⚙️")]
@@ -535,7 +592,12 @@ class TestRunClaude:
         bot.projects = [{"name": "narrat", "dir": "/tmp"}]
         bot.sessions.clear()
 
-        tool_block = {"type": "tool_use", "id": "t1", "name": "Read", "input": {"file_path": "/a.py"}}
+        tool_block = {  # noqa: E501
+            "type": "tool_use",
+            "id": "t1",
+            "name": "Read",
+            "input": {"file_path": "/a.py"},
+        }
         events = [
             {"type": "assistant", "message": {"content": [tool_block]}},
             {"type": "assistant", "message": {"content": [tool_block]}},  # duplicate
@@ -545,7 +607,7 @@ class TestRunClaude:
 
         with patch("asyncio.create_subprocess_exec", return_value=proc):
             update = make_update()
-            await bot.run_claude("task", update)
+            await bot.run_claude("task", update, asyncio.Event())
 
         calls = [c[0][0] for c in update.message.reply_text.call_args_list]
         tool_calls = [c for c in calls if c.startswith("⚙️")]
@@ -560,7 +622,7 @@ class TestRunClaude:
 
         with patch("asyncio.create_subprocess_exec", return_value=proc):
             update = make_update()
-            await bot.run_claude("task", update)
+            await bot.run_claude("task", update, asyncio.Event())
 
         text = update.message.reply_text.call_args[0][0]
         assert "⚠️" in text
@@ -575,7 +637,7 @@ class TestRunClaude:
 
         with patch("asyncio.create_subprocess_exec", return_value=proc):
             update = make_update()
-            await bot.run_claude("task", update)
+            await bot.run_claude("task", update, asyncio.Event())
 
         text = update.message.reply_text.call_args[0][0]
         assert "⚠️" in text
@@ -588,28 +650,97 @@ class TestRunClaude:
         class _MixedStream:
             def __aiter__(self):
                 return self
-            _items = iter([
-                b"not json\n",
-                b"\n",
-                json.dumps({"type": "result", "result": "ok", "session_id": "s"}).encode() + b"\n",
-            ])
+
+            _items = iter(
+                [
+                    b"not json\n",
+                    b"\n",
+                    json.dumps({"type": "result", "result": "ok", "session_id": "s"}).encode()
+                    + b"\n",
+                ]
+            )
+
             async def __anext__(self):
                 try:
                     return next(self._items)
                 except StopIteration:
-                    raise StopAsyncIteration
+                    raise StopAsyncIteration from None
 
         proc = _make_proc([], stderr=b"")
         proc.stdout = _MixedStream()
 
         with patch("asyncio.create_subprocess_exec", return_value=proc):
             update = make_update()
-            await bot.run_claude("task", update)
+            await bot.run_claude("task", update, asyncio.Event())
 
         update.message.reply_text.assert_called_with("ok")
 
+    async def test_typing_done_set_before_tool_notification(self):
+        """typing_done is set by the time the first tool notification is sent."""
+        bot.active_project = "narrat"
+        bot.projects = [{"name": "narrat", "dir": "/tmp"}]
+        bot.sessions.clear()
+
+        typing_done = asyncio.Event()
+        was_set_when_notified = []
+
+        events = [
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": "t1",
+                            "name": "Read",
+                            "input": {"file_path": "/f.py"},
+                        },  # noqa: E501
+                    ]
+                },
+            },
+            {"type": "result", "result": "done", "session_id": "s"},
+        ]
+        proc = _make_proc(events)
+        update = make_update()
+
+        async def capture(text):
+            was_set_when_notified.append(typing_done.is_set())
+
+        update.message.reply_text = AsyncMock(side_effect=capture)
+
+        with patch("asyncio.create_subprocess_exec", return_value=proc):
+            await bot.run_claude("task", update, typing_done)
+
+        assert typing_done.is_set()
+        assert was_set_when_notified[0] is True
+
+    async def test_typing_done_set_before_result(self):
+        """typing_done is set by the time the final result is sent (no tool calls)."""
+        bot.active_project = "narrat"
+        bot.projects = [{"name": "narrat", "dir": "/tmp"}]
+        bot.sessions.clear()
+
+        typing_done = asyncio.Event()
+        was_set_when_replied = []
+
+        events = [{"type": "result", "result": "All done!", "session_id": "s"}]
+        proc = _make_proc(events)
+        update = make_update()
+
+        async def capture(text):
+            was_set_when_replied.append(typing_done.is_set())
+
+        update.message.reply_text = AsyncMock(side_effect=capture)
+
+        with patch("asyncio.create_subprocess_exec", return_value=proc):
+            await bot.run_claude("task", update, typing_done)
+
+        assert typing_done.is_set()
+        assert was_set_when_replied[0] is True
+
 
 # ── handle_message ────────────────────────────────────────────────────────────
+
 
 class TestHandleMessage:
     def setup_method(self):
@@ -641,9 +772,13 @@ class TestHandleMessage:
 
         update = make_update(text="hello claude")
         with patch.object(bot, "run_claude", new=AsyncMock()) as mock_run:
-            await bot.handle_message(update, make_context())
+            with patch.object(bot, "typing_loop", new=AsyncMock()):
+                await bot.handle_message(update, make_context())
 
-        mock_run.assert_awaited_once_with("hello claude", update)
+        args, _ = mock_run.await_args
+        assert args[0] == "hello claude"
+        assert args[1] is update
+        assert isinstance(args[2], asyncio.Event)
 
     async def test_sends_project_name_before_running(self):
         bot.projects = [{"name": "narrat", "dir": "/tmp"}]
@@ -651,10 +786,38 @@ class TestHandleMessage:
 
         update = make_update(text="hello")
         with patch.object(bot, "run_claude", new=AsyncMock()):
-            await bot.handle_message(update, make_context())
+            with patch.object(bot, "typing_loop", new=AsyncMock()):
+                await bot.handle_message(update, make_context())
 
         first_call_text = update.message.reply_text.call_args_list[0][0][0]
         assert "narrat" in first_call_text
+
+    async def test_typing_loop_is_started(self):
+        """handle_message starts the typing loop before invoking Claude."""
+        bot.projects = [{"name": "narrat", "dir": "/tmp"}]
+        bot.active_project = "narrat"
+
+        update = make_update(text="hello")
+        with patch.object(bot, "run_claude", new=AsyncMock()):
+            with patch.object(bot, "typing_loop", new=AsyncMock()) as mock_loop:
+                await bot.handle_message(update, make_context())
+
+        mock_loop.assert_called_once()
+        _, kwargs = mock_loop.call_args
+        call_args = mock_loop.call_args[0]
+        assert call_args[0] is update
+        assert isinstance(call_args[1], asyncio.Event)
+
+    async def test_typing_loop_cancelled_on_exception(self):
+        """typing_done is set and task is cancelled even when run_claude raises."""
+        bot.projects = [{"name": "narrat", "dir": "/tmp"}]
+        bot.active_project = "narrat"
+
+        update = make_update(text="crash please")
+        with patch.object(bot, "run_claude", new=AsyncMock(side_effect=RuntimeError("boom"))):
+            with patch.object(bot, "typing_loop", new=AsyncMock()):
+                # Should not raise and should not hang
+                await bot.handle_message(update, make_context())
 
     async def test_exception_in_run_claude_sends_error(self):
         bot.projects = [{"name": "narrat", "dir": "/tmp"}]
@@ -662,7 +825,8 @@ class TestHandleMessage:
 
         update = make_update(text="crash please")
         with patch.object(bot, "run_claude", new=AsyncMock(side_effect=RuntimeError("boom"))):
-            await bot.handle_message(update, make_context())
+            with patch.object(bot, "typing_loop", new=AsyncMock()):
+                await bot.handle_message(update, make_context())
 
         calls = [c[0][0] for c in update.message.reply_text.call_args_list]
         error_msgs = [c for c in calls if "⚠️" in c]
